@@ -2,5 +2,5 @@
 # side as of the last confirmed-consistent state. Both languages carry equal authority;
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/feature/2026-08-15-electron-desktop-ipc-carrier.md
-2026-08-15-electron-desktop-ipc-carrier.md: 386c9f326b00ab1da2ccda3683db55bdc726eed8
-2026-08-15-electron-desktop-ipc-carrier.zh.md: 965c28cbd2983a898e9d8a9e900607eb0c0f1e08
+2026-08-15-electron-desktop-ipc-carrier.md: 3fb34d1dc3cd27ac22e71fc4e9ebece3c529af7f
+2026-08-15-electron-desktop-ipc-carrier.zh.md: 82c8b3a22d40338c2702b5bdda379a08108c9a30

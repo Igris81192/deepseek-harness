@@ -12,7 +12,7 @@ import { app, BrowserWindow, ipcMain, type WebContents } from 'electron'
 import { randomUUID } from 'node:crypto'
 import { readFile } from 'node:fs/promises'
 import { join } from 'node:path'
-import { fileURLToPath } from 'node:url'
+import { fileURLToPath, pathToFileURL } from 'node:url'
 import { loadLayeredEnv } from '@deepseek-ai/dsh-app-boot'
 import { runProfile } from '@deepseek-ai/dsh/profile-boot'
 import type { Context } from '@deepseek-ai/cordis'
@@ -142,6 +142,21 @@ function createWindow(): BrowserWindow {
 
 async function main(): Promise<void> {
   await app.whenReady()
+  // The watch-only HMR instance profile-boot mounts on long-lived surfaces
+  // resolves `process.argv[1]` to track reload dependencies; a packaged app
+  // launched from Finder passes no script argument, so supply the manifest.
+  // The value is only a load-cache key — module reload tracks no externals —
+  // while config hot-reload keeps working (watching is path-based).
+  if (process.argv[1] === undefined) process.argv[1] = join(APP_ROOT, 'package.json')
+  // A packaged app must resolve the web profile's bare plugin specifiers from
+  // its own node_modules rather than from the profile directory — the
+  // `~/.dsh/profiles/node_modules` symlinks point at the app bundle, and
+  // Electron's Node cannot traverse them into an asar (the bundle ships
+  // unpacked, `asar: false`, for this reason), so the Loader anchors on
+  // ctx.baseUrl only in dev, where the repository-resident profile deps exist.
+  const bareModuleBaseUrl = app.isPackaged
+    ? pathToFileURL(join(APP_ROOT, 'node_modules')).href + '/'
+    : undefined
   const { ctx, shutdown } = await runProfile({
     environment: loadLayeredEnv('dsh'),
     profile: 'web',
@@ -151,6 +166,7 @@ async function main(): Promise<void> {
     // default port must not block the desktop boot, and nothing to bind is
     // lost. v1 still mounts the webserver for compatibility (see README).
     args: ['--port', '0'],
+    ...(bareModuleBaseUrl === undefined ? {} : { bareModuleBaseUrl }),
   })
   installIpcHandlers(ctx)
   createWindow()

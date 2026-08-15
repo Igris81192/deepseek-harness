@@ -2,10 +2,16 @@
 # or notarization (`identity: null`). `files` mirrors the publish payload — the
 # built main, the preload, and the renderer bundle — so the packaged app is
 # exactly the published package plus its production node_modules.
+# `asar: false` is deliberate: the packaged profile boot resolves plugins
+# through `~/.dsh/profiles/node_modules` symlinks whose targets live in the
+# app bundle, and Electron's Node cannot traverse symlinks into an asar
+# (realpath of the target fails with ENOTDIR because app.asar is a file), so
+# the bundle ships as a real directory.
 appId: ai.deepseek.harness
 productName: DeepSeek Harness
 directories:
   output: release
+asar: false
 files:
   - lib/main.js
   - src/preload.cjs
