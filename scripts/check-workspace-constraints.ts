@@ -7,7 +7,7 @@
 
 import { existsSync, readdirSync, readFileSync } from 'node:fs'
 import { join, relative, resolve } from 'node:path'
-import { hasTypertRemoteNavigation, isForbiddenPublicationFile } from './publication-payload.ts'
+import { hasTypertRemoteNavigation, isForbiddenPublicationFile, publicationSourceAllowlist } from './publication-payload.ts'
 import { collectProjectReferenceFaceViolations } from './project-reference-faces.ts'
 
 const root = resolve(import.meta.dirname, '..')
@@ -36,10 +36,6 @@ const publicLandlockPackages = new Set([
   '@deepseek-ai/node-addon-landlock-run-linux-arm64',
   '@deepseek-ai/node-addon-landlock-run-linux-x64',
 ])
-/** Deliberate source payloads whose exact bytes are part of the package's audit surface. */
-const publicationSourceAllowlist: Readonly<Record<string, readonly string[]>> = {
-  '@deepseek-ai/node-addon-landlock-run': ['src/main.c'],
-}
 const repositoryUrl = 'git+https://github.com/deepseek-harness/deepseek-harness.git'
 /**
  * Source home the published packages point consumers at. It differs from
@@ -56,6 +52,10 @@ const appPackageFiles: Readonly<Record<string, readonly string[]>> = {
   // The Web build emits sourcemaps for browser debugging; publishing them is
   // what the payload policy forbids, so the bundle ships without them.
   '@deepseek-ai/dsh-web-frontend': ['dist', '!dist/**/*.map'],
+  // The desktop app ships its built main, the CJS preload (shipped as-is, not
+  // compiled), and the file:// renderer bundle — sourcemaps stay out like the
+  // web app.
+  '@deepseek-ai/dsh-desktop': ['lib/main.js', 'src/preload.cjs', 'dist', '!dist/**/*.map'],
 }
 
 /** The subset of package.json fields this constraint check cares about. */

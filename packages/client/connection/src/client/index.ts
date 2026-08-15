@@ -30,6 +30,7 @@ export type {
   SettingsApi, SettingsNamespaceView, SettingsPathOpView, SettingsSecretView,
   CredentialsApi, CredentialView, ConfigurableProviderView, DiscoveredModelView, LlmApi,
 } from './api.ts'
+
 export {
   RpcId,
   AbstractApiClient,
@@ -49,6 +50,27 @@ export interface HostDescriptionSource {
   subscribe(listener: () => void): () => void
 }
 
+/**
+ * In-process API/RPC transport injected by an embedding shell (Electron
+ * preload) before the web client boots. Selected over the browser HTTP
+ * transport when present; the page is then host-authoritative, so `isLoopback`
+ * reads true regardless of the page authority (a file:// page is otherwise
+ * classified non-loopback).
+ */
+export interface DesktopTransportProvider {
+  /** Build the shared API client carrying RPC over the embedding bridge. */
+  createApi(): IApiClient
+  /** Build the generic logical-channel RPC over the same bridge. */
+  createRpc(): ClientConnectionRpc
+}
+
+declare global {
+  interface Window {
+    /** In-process transport installed by an embedding desktop shell. */
+    __DSH_DESKTOP_TRANSPORT__?: DesktopTransportProvider
+  }
+}
+
 /** Required services (none — this is the wire root). */
 export const inject: string[] = []
 
@@ -58,7 +80,7 @@ export const inject: string[] = []
  * is ready — connection stays consumer-agnostic).
  */
 export interface ConnectionHandle {
-  /** Shared api client (fixture or real, decided at boot from the page URL). */
+  /** Shared api client (fixture, embedding-shell, or HTTP, decided at boot). */
   readonly api: IApiClient
   /** Whether the current page authority is loopback; non-browser contexts default to true. */
   readonly isLoopback: boolean
@@ -85,8 +107,11 @@ export function apply(ctx: Context): void {
   const pageLocation = typeof location === 'undefined' ? undefined : location
   const fixture = pageLocation !== undefined && new URLSearchParams(pageLocation.search).has('fixture')
   const fixtureClient = fixture ? new FixtureApiClient() : undefined
-  const api: IApiClient = fixtureClient ?? new WebApiClient()
-  const rpc = fixtureClient?.rpc ?? createWebConnectionRpc()
+  // Read from globalThis, not window: in a browser the two are one object, and
+  // non-browser test environments define neither a window nor a desktop shell.
+  const desktop = (globalThis as { __DSH_DESKTOP_TRANSPORT__?: DesktopTransportProvider }).__DSH_DESKTOP_TRANSPORT__
+  const api: IApiClient = fixtureClient ?? desktop?.createApi() ?? new WebApiClient()
+  const rpc = fixtureClient?.rpc ?? desktop?.createRpc() ?? createWebConnectionRpc()
   let started = false
   let description: HostDescription | undefined
   const descriptionListeners = new Set<() => void>()
@@ -103,7 +128,9 @@ export function apply(ctx: Context): void {
   }
   const handle: ConnectionHandle = {
     api,
-    isLoopback: pageLocation === undefined || isLoopbackHostname(pageLocation.hostname),
+    isLoopback: pageLocation === undefined
+      || desktop !== undefined
+      || isLoopbackHostname(pageLocation.hostname),
     hostDescription: {
       getSnapshot: () => description,
       subscribe: (listener) => {

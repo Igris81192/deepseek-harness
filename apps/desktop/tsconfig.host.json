@@ -1,0 +1,29 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "rootDir": "src",
+    "outDir": "lib/types",
+    "tsBuildInfoFile": "lib/tsconfig.host.tsbuildinfo"
+  },
+  // The renderer's carrier files compile in this node-typed program too: the
+  // host-aggregate tests (apps/desktop/tests/carrier.host.spec.ts) drive them
+  // against a main-side fixture, and each is DOM-free transport code that
+  // tolerates node globals. renderer.ts and desktop-rpc.ts stay client-leaf —
+  // renderer.ts touches the DOM, and desktop-rpc.ts carries a client-plane
+  // type (ClientConnectionRpc) that only the connection client face owns, so
+  // it type-checks in the client aggregate (tsconfig.client.json) instead.
+  "files": [
+    "src/base64.ts",
+    "src/bridge.ts",
+    "src/electron-api-client.ts",
+    "src/main.ts"
+  ],
+  "references": [
+    { "path": "../../apps/cli" },
+    { "path": "../../packages/boot/app-boot" },
+    { "path": "../../packages/client/connection/tsconfig.host.json" },
+    { "path": "../../packages/client/modules" },
+    { "path": "../../packages/host/apiproxy" },
+    { "path": "../../vendor/cordis" }
+  ]
+}

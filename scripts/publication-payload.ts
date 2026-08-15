@@ -23,6 +23,16 @@ function payloadPath(file: string): string {
 }
 
 /**
+ * Deliberate source payloads whose exact bytes are part of the package's audit
+ * surface. The desktop preload ships as-is CJS (Electron loads it verbatim),
+ * and the landlock entrypoint is compiled into the native addon.
+ */
+export const publicationSourceAllowlist: Readonly<Record<string, readonly string[]>> = {
+  '@deepseek-ai/dsh-desktop': ['src/preload.cjs'],
+  '@deepseek-ai/node-addon-landlock-run': ['src/main.c'],
+}
+
+/**
  * Whether a package payload path exposes source or map intermediates. Maps
  * serve editor navigation during development, where a workspace consumer
  * resolves their source through the package link; a published map resolves
@@ -42,10 +52,16 @@ export function isForbiddenPublicationFile(file: string): boolean {
  * Reject source and map members in a packed npm tarball.
  * @param files - tarball members to validate.
  * @param context - tarball identity named in the failure.
+ * @param allowedSources - payload paths exempt from the source ban
+ *   ({@link publicationSourceAllowlist} entries for the artifact's package).
  */
-export function validateTarballPayload(files: readonly string[], context: string): void {
+export function validateTarballPayload(
+  files: readonly string[],
+  context: string,
+  allowedSources: readonly string[] = [],
+): void {
   for (const file of files) {
-    if (!isForbiddenPublicationFile(file)) continue
+    if (!isForbiddenPublicationFile(file) || allowedSources.includes(payloadPath(file))) continue
     const normalized = payloadPath(file)
     if (normalized === 'src' || normalized.startsWith('src/')) {
       throw new Error(`${context} publishes source file ${file}`)

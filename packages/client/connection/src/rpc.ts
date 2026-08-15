@@ -1,6 +1,7 @@
 /** Generic unary RPC contracts shared by the Host and Client Connection halves. */
 
 import type { RpcResult } from '@deepseek-ai/dsh-host-apiproxy/api'
+import type { FetchHandler } from './fetch-handler.ts'
 
 /** Trust fence applied before a Host RPC channel reaches its handler. */
 export type ConnectionRpcAuthority = 'trusted-host' | 'loopback'
@@ -56,6 +57,13 @@ export interface HostConnectionRpc {
 export interface HostConnectionHandle {
   /** Generic RPC channel registry. */
   readonly rpc: HostConnectionRpc
+  /**
+   * The composed `/api` dispatcher as a plain Fetch handler: generic RPC-channel
+   * interception, then the fallback (privileged-method loopback pin, events
+   * upgrade fence, API Proxy unary/respond). Transport-independent adapters
+   * (an Electron IPC bridge) reuse the same fence without a webserver.
+   */
+  createApiFetchHandler(): FetchHandler
 }
 
 /** Client caller for logical RPC channels carried by the current transport. */

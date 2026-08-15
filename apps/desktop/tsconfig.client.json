@@ -1,0 +1,26 @@
+{
+  "extends": "../../tsconfig.base.client.json",
+  "compilerOptions": {
+    "rootDir": "src",
+    // The client emit is a typecheck-only artifact (vite builds from src/ and
+    // tsdown reads only the host emit), so it keeps its own outDir — the host
+    // leaf compiles src/bridge.ts too, and overlapping tsc -b outputs would
+    // collide.
+    "outDir": "lib/client-types",
+    "tsBuildInfoFile": "lib/tsconfig.client.tsbuildinfo"
+  },
+  "files": [
+    "src/base64.ts",
+    "src/bridge.ts",
+    "src/desktop-rpc.ts",
+    "src/electron-api-client.ts",
+    "src/renderer.ts"
+  ],
+  "references": [
+    { "path": "../../packages/client/connection/tsconfig.client.json" },
+    { "path": "../../packages/client/modules" },
+    { "path": "../../packages/client/web" },
+    { "path": "../../packages/host/apiproxy" },
+    { "path": "../../vendor/cordis" }
+  ]
+}

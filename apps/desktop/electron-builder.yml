@@ -1,0 +1,18 @@
+# Local-only .app: the `dir` target builds the app bundle without codesigning
+# or notarization (`identity: null`). `files` mirrors the publish payload — the
+# built main, the preload, and the renderer bundle — so the packaged app is
+# exactly the published package plus its production node_modules.
+appId: ai.deepseek.harness
+productName: DeepSeek Harness
+directories:
+  output: release
+files:
+  - lib/main.js
+  - src/preload.cjs
+  - dist/**/*
+  - package.json
+mac:
+  target:
+    - dir
+  identity: null
+npmRebuild: false

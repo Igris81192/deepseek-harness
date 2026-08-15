@@ -23,6 +23,11 @@
     "packages/*/*/tests/**/*.client.spec.tsx",
     "packages/*/*/tests/**/*.client.tsx",
     "packages/*/*/tests/**/*.client.ts",
+    // Desktop carrier file desktop-rpc.ts is client-plane (imports a
+    // client-owned type); its tests join the client aggregate while the
+    // ElectronApiClient carrier tests stay host-side (they drive the
+    // main-process twin).
+    "apps/desktop/tests/**/*.client.spec.ts",
     // Client package outside packages/client with a local CSS module face.
     "packages/extensions/ui-cordis/src/css-modules.d.ts",
     "packages/client/tsdown.client.ts",
@@ -93,6 +98,7 @@
     { "path": "./packages/client/ui-settings-plugin-inventory" },
     { "path": "./packages/client/locale" },
     { "path": "./packages/client/web" },
-    { "path": "./apps/web" }
+    { "path": "./apps/web" },
+    { "path": "./apps/desktop/tsconfig.client.json" }
   ]
 }

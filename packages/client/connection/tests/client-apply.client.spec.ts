@@ -4,14 +4,17 @@
  */
 import { Context } from '@deepseek-ai/cordis'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { apply, type ConnectionHandle } from '../src/client/index.ts'
-import type { RpcMessage } from '../src/client/api.ts'
+import {
+  apply, type ClientConnectionRpc, type ConnectionHandle, type DesktopTransportProvider,
+} from '../src/client/index.ts'
+import type { IApiClient, RpcMessage } from '../src/client/api.ts'
 import { RpcId } from '../src/client/api.ts'
 import { FixtureApiClient } from '../src/client/fixture.ts'
 import { WebApiClient } from '../src/client/web-api-client.ts'
 
 type Win = { location?: { hostname: string; search: string; origin?: string } }
 type WebSocketGlobal = { WebSocket?: typeof WebSocket }
+type DesktopGlobal = { __DSH_DESKTOP_TRANSPORT__?: DesktopTransportProvider }
 
 const originalWebSocket = globalThis.WebSocket
 const sockets: FakeWebSocket[] = []
@@ -49,6 +52,7 @@ class FakeWebSocket extends EventTarget {
 
 afterEach(() => {
   delete (globalThis as Win).location
+  delete (globalThis as DesktopGlobal).__DSH_DESKTOP_TRANSPORT__
   sockets.length = 0
   if (originalWebSocket === undefined) delete (globalThis as WebSocketGlobal).WebSocket
   else globalThis.WebSocket = originalWebSocket
@@ -82,6 +86,34 @@ describe('connection client apply', () => {
   it('reports non-loopback page authority through the connection handle', async () => {
     ;(globalThis as Win).location = { hostname: '192.0.2.20', search: '' }
     expect((await mount()).isLoopback).toBe(false)
+  })
+
+  it('selects the embedding-shell transport over HTTP and treats the page as host-authoritative', async () => {
+    const api = {} as IApiClient
+    const rpc: ClientConnectionRpc = { call: async () => ({ ok: true, value: null }) }
+    const provider: DesktopTransportProvider = { createApi: () => api, createRpc: () => rpc }
+    ;(globalThis as DesktopGlobal).__DSH_DESKTOP_TRANSPORT__ = provider
+    // A file:// desktop page has an empty hostname, which alone is non-loopback.
+    ;(globalThis as Win).location = { hostname: '', search: '' }
+    const handle = await mount()
+    expect(handle.api).toBe(api)
+    expect(handle.rpc).toBe(rpc)
+    expect(handle.isLoopback).toBe(true)
+  })
+
+  it('an empty page hostname without the embedding shell stays non-loopback', async () => {
+    ;(globalThis as Win).location = { hostname: '', search: '' }
+    expect((await mount()).isLoopback).toBe(false)
+  })
+
+  it('?fixture still wins over the embedding-shell transport', async () => {
+    const provider: DesktopTransportProvider = {
+      createApi: () => ({} as IApiClient),
+      createRpc: () => ({ call: async () => ({ ok: true, value: null }) }),
+    }
+    ;(globalThis as DesktopGlobal).__DSH_DESKTOP_TRANSPORT__ = provider
+    ;(globalThis as Win).location = { hostname: '', search: '?fixture' }
+    expect((await mount()).api).toBeInstanceOf(FixtureApiClient)
   })
 
   it('start() hands out one loop, rejects a second consumer, and stop() aborts the streams', async () => {

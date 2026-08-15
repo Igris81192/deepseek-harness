@@ -337,6 +337,69 @@ describe('connection node half', () => {
     await fiber.dispose()
   })
 
+  it('exposes the composed /api dispatcher as a plain Fetch handler (the transport-independent carrier)', async () => {
+    const ctx = new Context()
+    ctx.provide('webServer', fakeHttpServer([], []) as WebServer)
+    ctx.provide('apiProxy', {} as unknown as ApiProxy)
+    const fiber = ctx.plugin({ inject: [...inject], apply }, { trustedHosts: ['harness.example'] })
+    await fiber.await()
+    const connection = ctx.get('connection') as HostConnectionHandle
+    const handler = connection.createApiFetchHandler()
+
+    // Events GET: the upgrade fence answers before the API Proxy, fetch-shaped.
+    const events = await handler.fetch(new Request(`http://127.0.0.1:3080${MUX_EVENTS_PATH}`))
+    expect(events.status).toBe(426)
+
+    // Privileged method with a declared trusted authority: loopback pin, no webserver involved.
+    const privileged = await handler.fetch(new Request(`http://harness.example${API_PATH}/credentials.describe`))
+    expect(privileged.status).toBe(403)
+
+    // Ordinary unary falls through to the (empty) API Proxy: carrier-level 404.
+    const unary = await handler.fetch(new Request(`http://127.0.0.1:3080${API_PATH}/session.list`))
+    expect(unary.status).toBe(404)
+
+    // An interceptor claim wins over the fallback on the same handler.
+    const remove = connection.rpc.intercept(
+      '/api',
+      endpoint => endpoint === 'goals/create',
+      async () => ({ ok: true, value: { accepted: true } }),
+      { authority: 'loopback' },
+    )
+    // The in-process adapter declares its trust by stamping a loopback Host:
+    // a plain Request from a renderer URL carries no host header in Node, and
+    // the fence must still see an authority it trusts. This is the exact shape
+    // the Electron IPC bridge will construct for every forwarded request.
+    const claimed = await handler.fetch(new Request(`http://127.0.0.1:3080${API_PATH}/goals/create`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', host: '127.0.0.1:3080' },
+      body: JSON.stringify({
+        type: 'client-request',
+        rpcId: 'rpc-fetch-shaped',
+        method: 'goals/create',
+        payload: { args: { agentId: 'agent-1' } },
+      }),
+    }))
+    expect(claimed.status).toBe(200)
+    expect(await claimed.json()).toMatchObject({
+      rpcId: 'rpc-fetch-shaped',
+      result: { ok: true, value: { accepted: true } },
+    })
+
+    await remove()
+    const withdrawn = await handler.fetch(new Request(`http://127.0.0.1:3080${API_PATH}/goals/create`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', host: '127.0.0.1:3080' },
+      body: JSON.stringify({
+        type: 'client-request',
+        rpcId: 'rpc-fetch-shaped',
+        method: 'goals/create',
+        payload: { args: { agentId: 'agent-1' } },
+      }),
+    }))
+    expect(withdrawn.status).toBe(404)
+    await fiber.dispose()
+  })
+
   it('applies the configured trust fence and JSON envelope checks to generic channels', async () => {
     const ctx = new Context()
     const routes: WebRoute[] = []

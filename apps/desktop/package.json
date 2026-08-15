@@ -1,0 +1,53 @@
+{
+  "name": "@deepseek-ai/dsh-desktop",
+  "description": "dsh macOS desktop app: Electron main embedding the web profile, IPC-carried renderer",
+  "version": "0.1.0-rc.5",
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/deepseek-ai/deepseek-harness.git",
+    "directory": "apps/desktop"
+  },
+  "type": "module",
+  "main": "lib/main.js",
+  "files": [
+    "lib/main.js",
+    "src/preload.cjs",
+    "dist",
+    "!dist/**/*.map"
+  ],
+  "license": "MIT",
+  "scripts": {
+    "build": "pnpm run build:main && pnpm run build:renderer",
+    "build:main": "tsc -b tsconfig.host.json && tsdown",
+    "build:renderer": "vite build",
+    "dev": "pnpm run build && electron .",
+    "dist:mac": "electron-builder --mac dir",
+    "test": "vitest run",
+    "typecheck": "tsc -b tsconfig.host.json && tsc -b tsconfig.client.json"
+  },
+  "dependencies": {
+    "@deepseek-ai/dsh": "workspace:^",
+    "@deepseek-ai/dsh-app-boot": "workspace:^",
+    "@deepseek-ai/dsh-client-modules": "workspace:^",
+    "@deepseek-ai/dsh-host-apiproxy": "workspace:^"
+  },
+  "devDependencies": {
+    "@deepseek-ai/cordis": "workspace:^",
+    "@deepseek-ai/dsh-client-connection": "workspace:^",
+    "@deepseek-ai/dsh-client-web": "workspace:^",
+    "@types/node": "^22.0.0",
+    "@types/react": "~18.3.1",
+    "@types/react-dom": "~18.3.0",
+    "@vitejs/plugin-react": "^4.0.0",
+    "electron": "^37.2.0",
+    "electron-builder": "^26.0.12",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "typescript": "^6.0.3",
+    "vite": "^6.0.0",
+    "vitest": "^4.1.8"
+  }
+}

@@ -4,22 +4,15 @@
  */
 
 import type { IncomingMessage, ServerResponse } from 'node:http'
+import type { FetchHandler } from './fetch-handler.ts'
+
+export type { FetchHandler } from './fetch-handler.ts'
 
 /** Default carrier cap for all HTTP RPC bodies: sized for the default
  * aggregate image limit (100 MiB) after base64 expansion plus envelope
  * headroom (~134.3 MiB required), rounded up for slack. The bridge buffers
  * each body in memory, so this cap is also the per-request resident bound. */
 export const DEFAULT_MAX_REQUEST_BODY_BYTES = 160 * 1024 * 1024
-
-/** Transport-independent request handler consumed by the Host HTTP bridge. */
-export interface FetchHandler {
-  /**
-   * Handle one standard Fetch request.
-   * @param request - request produced by the active transport bridge.
-   * @returns complete or streaming Fetch response.
-   */
-  fetch(request: Request): Promise<Response>
-}
 
 /**
  * Bridge one node:http request to the fetch-shaped handler (client close
